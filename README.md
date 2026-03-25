@@ -136,6 +136,3 @@ These can be removed and replaced with any loans you like.
 
 Works in any modern browser: Chrome, Safari, Firefox, Edge. No Internet Explorer support.
 
----
-
-*Built for Mohamed Elshawaf · March 2026*
