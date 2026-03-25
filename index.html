@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loan Tracker — Mohamed Elshawaf</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/layout.css">
+</head>
+<body>
+
+<!-- ── HEADER ──────────────────────────────────────────────────────── -->
+<div class="header">
+  <div class="header-left">
+    <h1>Loan Tracker</h1>
+    <p id="header-sub">Mohamed Elshawaf · 3 active loans</p>
+  </div>
+  <div class="header-right">
+    <div class="status-pill">
+      <span class="status-dot"></span>
+      <span id="header-status">Loading…</span>
+    </div>
+    <button class="hbtn" onclick="openAddModal()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add loan
+    </button>
+    <button class="hbtn" onclick="exportPDF()" id="pdf-btn">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export PDF
+    </button>
+    <button class="hbtn" onclick="toggleTheme()">
+      <span id="theme-label">Dark</span>
+      <div class="toggle-knob"></div>
+    </button>
+  </div>
+</div>
+
+<!-- ── ADD / EDIT LOAN MODAL ───────────────────────────────────────── -->
+<div class="modal-overlay" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h3 id="modal-title">Add loan</h3>
+    <div class="frow">
+      <label>Loan name</label>
+      <input class="finp txt" id="f-name" type="text" placeholder="e.g. Apartment, Car loan…">
+    </div>
+    <div class="frow-2">
+      <div class="frow" style="margin:0">
+        <label>Remaining balance (EGP)</label>
+        <input class="finp" id="f-balance" type="number" min="0" placeholder="0">
+      </div>
+      <div class="frow" style="margin:0">
+        <label>Notes / frequency</label>
+        <input class="finp txt" id="f-freq" type="text" placeholder="e.g. Monthly · Bank">
+      </div>
+    </div>
+    <div class="chk-row">
+      <input type="checkbox" id="f-fixed" onchange="document.getElementById('f-fixed-row').style.display=this.checked?'':'none'">
+      <label for="f-fixed">This loan has a fixed monthly payment (e.g. bank installment)</label>
+    </div>
+    <div id="f-fixed-row" style="display:none" class="frow">
+      <label>Fixed monthly payment (EGP)</label>
+      <input class="finp" id="f-fixed-amt" type="number" min="0" placeholder="0">
+    </div>
+    <div class="frow">
+      <label>Color</label>
+      <div class="swatches" id="swatches"></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" id="btn-save" onclick="saveLoan()">Add loan</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MAIN CONTENT ────────────────────────────────────────────────── -->
+<div class="main">
+
+  <!-- Settings -->
+  <div class="section">
+    <div class="sec-title">Payment settings</div>
+    <div class="controls-card">
+      <div class="mode-tabs">
+        <button class="tab active" onclick="setMode('monthly',this)">Fixed monthly amount</button>
+        <button class="tab" onclick="setMode('months',this)">Target months to finish</button>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-row">
+          <label>Start month</label>
+          <select class="sel" id="sel-month" onchange="syncStartDate()">
+            <option value="0">January</option><option value="1">February</option>
+            <option value="2" selected>March</option><option value="3">April</option>
+            <option value="4">May</option><option value="5">June</option>
+            <option value="6">July</option><option value="7">August</option>
+            <option value="8">September</option><option value="9">October</option>
+            <option value="10">November</option><option value="11">December</option>
+          </select>
+          <select class="sel" id="sel-year" onchange="syncStartDate()">
+            <option value="2024">2024</option><option value="2025">2025</option>
+            <option value="2026" selected>2026</option><option value="2027">2027</option>
+          </select>
+        </div>
+        <div id="ctrl-monthly">
+          <div class="ctrl-row">
+            <label>Monthly payment (EGP)</label>
+            <input type="range" id="sl-monthly" min="10000" max="1000000" step="1000" value="293684" oninput="syncMonthly(this.value)">
+            <input type="number" class="ctrl-inp" id="in-monthly" value="293684" step="1000" oninput="syncMonthly(this.value)">
+          </div>
+        </div>
+        <div id="ctrl-months" style="display:none">
+          <div class="ctrl-row">
+            <label>Finish in (months)</label>
+            <input type="range" id="sl-months" min="1" max="60" step="1" value="12" oninput="syncMonths(this.value)">
+            <span class="readout" id="out-months">12 months</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Overview -->
+  <div class="section">
+    <div class="sec-title">Overview</div>
+    <div class="hero">
+      <div class="hero-main">
+        <div class="lbl">Monthly payment</div>
+        <div class="amount" id="hero-amount">EGP 293,684</div>
+        <div class="sub" id="hero-sub2">Debt-free in 12 months</div>
+      </div>
+      <div class="hero-stats">
+        <div class="hstat"><div class="k">Total remaining</div><div class="v" id="hs-rem" style="color:var(--gold)">—</div></div>
+        <div class="hstat"><div class="k">Paid (checked)</div><div class="v" id="hs-paid" style="color:var(--green)">0</div></div>
+        <div class="hstat"><div class="k">Total months</div><div class="v" id="hs-mo" style="color:#6d4fd4">—</div></div>
+        <div class="hstat"><div class="k">% cleared</div><div class="v" id="hs-pct" style="color:var(--gold)">0%</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loans -->
+  <div class="section">
+    <div class="sec-title">Loans</div>
+    <div class="loan-cards" id="loan-cards"></div>
+  </div>
+
+  <!-- Checkboxes -->
+  <div class="section">
+    <div class="sec-title">Mark payments made</div>
+    <div class="checks-container">
+      <div class="checks-header">
+        <p>Check off each month you've paid — balances update automatically</p>
+        <button class="clear-btn" onclick="clearAll()">Clear all</button>
+      </div>
+      <div class="checks-grid" id="checks-grid"></div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="section">
+    <div class="sec-title">Charts</div>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Balance over time</div>
+        <div class="chart-legend" id="leg-bal"></div>
+        <div style="position:relative;width:100%;height:255px"><canvas id="chart-balance"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Monthly payments by loan</div>
+        <div class="chart-legend" id="leg-bar"></div>
+        <div style="position:relative;width:100%;height:255px"><canvas id="chart-bar"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Schedule Table -->
+  <div class="section">
+    <div class="sec-title">Full repayment schedule</div>
+    <div class="table-wrap">
+      <div class="table-scroll">
+        <table>
+          <thead><tr id="tbl-head"></tr></thead>
+          <tbody id="tbl-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="js/state.js"></script>
+<script src="js/schedule.js"></script>
+<script src="js/render.js"></script>
+<script src="js/modal.js"></script>
+<script src="js/controls.js"></script>
+<script src="js/export.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
